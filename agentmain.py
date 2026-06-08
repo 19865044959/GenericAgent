@@ -49,10 +49,11 @@ class GenericAgent:
         self.task_dir = None
         self.history = []; self.handler = None; 
         self.task_queue = queue.Queue() 
-        self.is_running = False; self.stop_sig = False; self.llm_no = 0;  
+        self.is_running = False; self.stop_sig = False; self.llm_no = 0;
         self.inc_out = False; self.verbose = True; self.show_mode = 'text'
         self.peer_hint = True
         self.force_non_stream = False
+        self.extraction_done = threading.Event()
         logid = f'{(time.time_ns() + random.randrange(1_000_000)) % 1_000_000:06d}'
         self.log_path = os.path.join(script_dir, f'temp/model_responses/model_responses_{logid}.txt')
         self.load_llm_sessions()
@@ -100,6 +101,19 @@ class GenericAgent:
         if model: return b.backend.model.lower()
         return f"{type(b.backend).__name__}/{b.backend.name}"
 
+    def _do_extraction(self):
+        """会话结束时萃取一次记忆"""
+        if not self.handler or not self.history:
+            return
+        try:
+            from memory_auto import extract_facts, auto_update_l2
+            facts = extract_facts(self.handler.history_info, self.history, self.llmclient,
+                                    memory_dir=os.path.join(script_dir, 'memory'), timeout=15)
+            if facts:
+                auto_update_l2(facts, os.path.join(script_dir, 'memory'))
+        except Exception as e:
+            print(f"[Memory Auto] Extraction failed: {e}")
+
     def abort(self):
         if not self.is_running: return
         print('Abort current task...')
@@ -142,7 +156,16 @@ class GenericAgent:
                 raw_query = f'Long user prompt saved to {task_file}. Read and execute.'
             rquery = smart_format(raw_query.replace('\n', ' '), max_str_len=200)
             self.history.append(f"[USER]: {rquery}")
-            
+
+            # === 自动检索记忆 ===
+            try:
+                from memory_auto import search_memory
+                retrieved = search_memory(raw_query, os.path.join(script_dir, 'memory'))
+                if retrieved:
+                    raw_query = retrieved + '\n\n' + raw_query
+            except Exception as e:
+                print(f"[Memory Auto] Retrieval failed: {e}")
+
             sys_prompt = get_system_prompt() + getattr(self.llmclient.backend, 'extra_sys_prompt', '')
             if self.peer_hint: sys_prompt += f"\n[Peer] 用户提及其他会话/后台任务状态时: temp/model_responses/ (只找近期修改的文件尾部)\n"
             handler = GenericAgentHandler(self, self.history, os.path.join(script_dir, 'temp'))
@@ -178,6 +201,7 @@ class GenericAgent:
                 #if '</file_content>' in full_resp: full_resp = re.sub(r'<file_content>\s*(.*?)\s*</file_content>', r'\n````\n<file_content>\n\1\n</file_content>\n````', full_resp, flags=re.DOTALL)                
                 display_queue.put({'done': full_resp, 'source': source, 'turn': curr_turn, 'outputs': turn_resps.copy()})
                 self.history = handler.history_info
+
             except Exception as e:
                 print(f"Backend Error: {format_error(e)}")
                 display_queue.put({'done': full_resp + f'\n```\n{format_error(e)}\n```', 'source': source, 'turn': curr_turn, 'outputs': turn_resps.copy()})
@@ -186,6 +210,10 @@ class GenericAgent:
                 self.is_running = self.stop_sig = False
                 self.task_queue.task_done()
                 if self.handler is not None: self.handler.code_stop_signal.append(1)
+
+        # === 会话结束，自动萃取记忆（一次）===
+        self._do_extraction()
+        self.extraction_done.set()
 
 GeneraticAgent = GenericAgent    
 
@@ -230,16 +258,24 @@ if __name__ == '__main__':
         with open(infile, encoding='utf-8') as f: raw = f.read()
         while True:
             dq = agent.put_task(raw, source='task')
-            while 'done' not in (item := dq.get(timeout=1200)): 
+            while 'done' not in (item := dq.get(timeout=1200)):
                 if 'next' in item and random.random() < 0.95:  # 概率写一次中间结果
                     with open(f'{d}/output{nround}.txt', 'w', encoding='utf-8') as f: f.write(item.get('next', ''))
             with open(f'{d}/output{nround}.txt', 'w', encoding='utf-8') as f: f.write(item['done'] + '\n\n[ROUND END]\n')
             consume_file(d, '_stop')  # 已经成功停下来了，避免打断下次reply
-            for _ in range(300):  # 等reply.txt，10分钟超时
+            for _ in range(300):  # 等reply.txt或_stop，10分钟超时
                 time.sleep(2)
+                if consume_file(d, '_stop'): raw = None; break
                 if (raw := consume_file(d, 'reply.txt')): break
-            else: break
+            else:
+                raw = None
+                break
+            if raw is None: break
             nround = nround + 1 if isinstance(nround, int) else 1
+        # 会话结束，触发萃取
+        agent.task_queue.put("__EXIT__")
+        agent.extraction_done.wait(timeout=20)
+        print("[GA] Session ended, memories saved.")
     elif args.reflect:
         agent.peer_hint = False
         agent.force_non_stream = True
@@ -291,7 +327,11 @@ if __name__ == '__main__':
                 sys.stdout.flush()
             except Exception: pass
         while True:
-            q = input('> ').strip()
+            try:
+                q = input('> ').strip()
+            except (KeyboardInterrupt, EOFError):
+                print('\n[GA] Session ending...')
+                break
             if not q: continue
             try:
                 dq = agent.put_task(q, source='user')
@@ -301,4 +341,10 @@ if __name__ == '__main__':
                     if 'done' in item: print(); break
             except KeyboardInterrupt:
                 agent.abort()
-                print('\n[Interrupted]')
+                print('\n[GA] Session ending, extracting memories...')
+                break
+        # 会话结束，触发萃取
+        agent.task_queue.put("__EXIT__")
+        if not agent.extraction_done.wait(timeout=20):
+            print("[GA] Extraction timed out.")
+        print("[GA] Goodbye.")
