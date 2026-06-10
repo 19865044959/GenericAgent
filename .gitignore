@@ -34,7 +34,7 @@ tasks/
 *.zip
 *.exe
 
-memory/*
+# memory/*
 !memory/memory_management_sop.md
 
 # Allow tracking of specific SOPs

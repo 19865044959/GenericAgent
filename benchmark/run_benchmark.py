@@ -51,20 +51,25 @@ def _check_patches():
 
 def run_offline_benchmark():
     """离线评测：直接调用 memory_auto 的 Python 函数，不经过 GA agent loop。"""
+    patched, patch_info = _check_patches()
+
+    if not patched:
+        print("=" * 60)
+        print("GA Memory Benchmark v2 — Offline Mode")
+        print(f"Patch status: ❌ {patch_info}")
+        print("SKIP: offline mode requires memory_auto.py (not available on vanilla GA)")
+        print("=" * 60)
+        return None
+
     from memory_auto import search_memory, auto_update_l2
     data = load_test_cases()
     memory_dir = os.path.join(SCRIPT_DIR, 'memory')
     l2_path = os.path.join(memory_dir, 'global_mem.txt')
 
-    patched, patch_info = _check_patches()
-
     print("=" * 60)
     print("GA Memory Benchmark v2 — Offline Mode")
     print(f"Test cases: {len(data['test_cases'])}")
-    print(f"Patch status: {'✅ ' if patched else '❌ '}{patch_info}")
-    if not patched:
-        print("⚠️  agentmain.py 未打补丁！memory_auto 函数可独立测试，")
-        print("   但 GA 实际运行时不会触发自动萃取/检索。")
+    print(f"Patch status: ✅ {patch_info}")
     print("=" * 60)
 
     results = {
@@ -234,9 +239,12 @@ def run_e2e_benchmark():
         # ── 预填充 L2（模拟上一轮会话留下的旧事实）──
         pre_seed = tc.get('pre_seed_l2', [])
         if pre_seed:
-            from memory_auto import auto_update_l2
-            auto_update_l2(pre_seed, memory_dir)
-            print(f"  Pre-seeded L2 with {len(pre_seed)} old facts")
+            if not patched:
+                print(f"  SKIP pre-seed: memory_auto not available on vanilla GA")
+            else:
+                from memory_auto import auto_update_l2
+                auto_update_l2(pre_seed, memory_dir)
+                print(f"  Pre-seeded L2 with {len(pre_seed)} old facts")
 
         session_1 = tc['session_1']
         session_2 = tc['session_2']
@@ -271,22 +279,30 @@ def run_e2e_benchmark():
         forbidden_kw = session_2.get('forbidden_keywords', [])
         should_abstain = session_2.get('should_abstain', False)
 
+        # min_matched: 至少匹配多少个关键词才算通过。默认要求全部匹配
+        min_matched = session_2.get('min_matched', len(expected_kw) if expected_kw else 1)
+
         matched = [kw for kw in expected_kw if kw in output]
         wrong = [kw for kw in forbidden_kw if kw in output]
 
         if should_abstain:
             abstain_indicators = ['不知道', '不清楚', '没有提到', "don't know", '未提及', '没有记录',
-                                 '没有提供', '无法回答', '没有手机号']
-            ok = any(ind in output for ind in abstain_indicators) or len(matched) == 0
+                                 '没有提供', '无法回答', '没有手机号', '没有找到']
+            has_abstention = any(ind in output for ind in abstain_indicators)
+            keyword_ok = has_abstention and len(wrong) == 0
         else:
-            ok = len(matched) >= 1 and len(wrong) == 0
+            keyword_ok = len(matched) >= min_matched and len(wrong) == 0
+
+        # Multi-signal verdict: extraction MUST succeed AND keywords MUST match
+        ok = extraction_ok and keyword_ok
 
         if ok:
             results['passed'] += 1
         results['details'].append({
             'id': tid, 'ok': ok,
+            'extraction_ok': extraction_ok, 'keyword_ok': keyword_ok,
             'matched': matched, 'wrong': wrong,
-            'expected': expected_kw
+            'expected': expected_kw, 'min_matched': min_matched
         })
 
         status = "✅" if ok else "❌"
@@ -296,7 +312,9 @@ def run_e2e_benchmark():
                 l2 = f.read()
             outdated_count = sum(1 for line in l2.split('\n') if '(outdated)' in line)
             extra = f' | Outdated: {outdated_count}'
-        print(f"  {status} Expected: {expected_kw}, Matched: {matched}, Wrong: {wrong}{extra}")
+        print(f"  {status} Extraction: {extraction_ok} | Keywords: {keyword_ok} "
+              f"({len(matched)}/{min_matched} matched, {len(wrong)} wrong)")
+        print(f"     Expected: {expected_kw}, Matched: {matched}, Wrong: {wrong}{extra}")
 
         # 清理 task 目录
         for d in [task_dir, task_dir_q]:
@@ -312,7 +330,9 @@ def run_e2e_benchmark():
     print(f"E2E RESULTS: {results['passed']}/{results['total']} passed")
     for d in results['details']:
         status = "✅" if d['ok'] else "❌"
-        print(f"  {status} {d['id']}: matched={d['matched']}, wrong={d['wrong']}")
+        print(f"  {status} {d['id']}: extraction={d.get('extraction_ok','?')} "
+              f"keywords={d.get('keyword_ok','?')} "
+              f"matched={d['matched']} wrong={d['wrong']}")
     print()
     return results
 
@@ -510,7 +530,8 @@ if __name__ == '__main__':
 
     if args.mode in ('offline', 'all'):
         results = run_offline_benchmark()
-        print_comparison_report(results)
+        if results is not None:
+            print_comparison_report(results)
 
     if args.mode in ('e2e', 'all'):
         run_e2e_benchmark()

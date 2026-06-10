@@ -26,7 +26,8 @@
       "session_2": {
         "query": "帮我推荐几件衣服",
         "expected_keywords": ["黑色", "简约"],
-        "forbidden_keywords": []
+        "forbidden_keywords": ["你的性别", "需要先了解", "先告诉我"],
+        "min_matched": 2
       }
     },
     {
@@ -50,7 +51,8 @@
       "session_2": {
         "query": "以我的技术背景，学什么新技能比较有前景",
         "expected_keywords": ["Python", "后端", "Docker"],
-        "forbidden_keywords": []
+        "forbidden_keywords": ["方便告诉我", "你目前的技术栈", "系统底层"],
+        "min_matched": 2
       }
     },
     {
@@ -68,7 +70,8 @@
         "query": "我的手机号是多少",
         "expected_keywords": [],
         "forbidden_keywords": [],
-        "should_abstain": true
+        "should_abstain": true,
+        "min_matched": 0
       }
     },
     {
@@ -91,7 +94,8 @@
       "session_2": {
         "query": "帮我推荐几件衣服",
         "expected_keywords": ["白色系"],
-        "forbidden_keywords": ["黑色系"]
+        "forbidden_keywords": ["黑色系", "你的性别", "需要先了解"],
+        "min_matched": 1
       }
     }
   ],
