@@ -1,0 +1,110 @@
+{
+  "global_mem_insight.txt": {
+    "count": 50,
+    "last": "2026-06-30"
+  },
+  "global_mem.txt": {
+    "count": 260,
+    "last": "2026-07-04"
+  },
+  "memory_management_sop.md": {
+    "count": 24,
+    "last": "2026-06-29"
+  },
+  "web_setup_sop.md": {
+    "count": 29,
+    "last": "2026-07-04"
+  },
+  "memory": {
+    "count": 6,
+    "last": "2026-06-26"
+  },
+  "tmwebdriver_sop.md": {
+    "count": 21,
+    "last": "2026-07-04"
+  },
+  "ljqCtrl_sop+.py": {
+    "count": 4,
+    "last": "2026-07-04"
+  },
+  "ljqCtrl_sop.md": {
+    "count": 3,
+    "last": "2026-07-04"
+  },
+  "memory_benchmark.py": {
+    "count": 8,
+    "last": "2026-06-07"
+  },
+  "L4_raw_sessions": {
+    "count": 2,
+    "last": "2026-06-07"
+  },
+  "salient_mining_sop.md": {
+    "count": 2,
+    "last": "2026-06-07"
+  },
+  "keychain.py": {
+    "count": 12,
+    "last": "2026-06-26"
+  },
+  "compress_session.py": {
+    "count": 2,
+    "last": "2026-06-08"
+  },
+  "keychain": {
+    "count": 2,
+    "last": "2026-06-08"
+  },
+  "SKILL.md": {
+    "count": 5,
+    "last": "2026-06-29"
+  },
+  "memory_cleanup_sop.md": {
+    "count": 2,
+    "last": "2026-06-27"
+  },
+  "skill_search": {
+    "count": 6,
+    "last": "2026-06-29"
+  },
+  "tmwebdriver_sop": {
+    "count": 9,
+    "last": "2026-07-04"
+  },
+  "L1_insight.txt": {
+    "count": 1,
+    "last": "2026-06-08"
+  },
+  "file_access_stats.json": {
+    "count": 1,
+    "last": "2026-06-08"
+  },
+  "web_setup_sop": {
+    "count": 6,
+    "last": "2026-07-04"
+  },
+  "autonomous_operation_sop.md": {
+    "count": 1,
+    "last": "2026-06-27"
+  },
+  "scheduled_task_sop.md": {
+    "count": 1,
+    "last": "2026-06-27"
+  },
+  "plan_sop.md": {
+    "count": 1,
+    "last": "2026-06-27"
+  },
+  "ljqCtrl.py": {
+    "count": 1,
+    "last": "2026-06-29"
+  },
+  "shopping_sop.md": {
+    "count": 16,
+    "last": "2026-07-04"
+  },
+  "vision_sop.md": {
+    "count": 1,
+    "last": "2026-07-04"
+  }
+}

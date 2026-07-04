@@ -14,19 +14,43 @@
       "description": "颜色偏好 — 买衣服时自然提到喜欢的颜色和风格",
       "session_1": {
         "dialogue": [
-          {"role": "user", "content": "最近想买衣服，有什么推荐吗"},
-          {"role": "user", "content": "我比较喜欢黑色系，简约风格的"},
-          {"role": "user", "content": "好的谢谢，我再想想"}
+          {
+            "role": "user",
+            "content": "最近想买衣服，有什么推荐吗"
+          },
+          {
+            "role": "user",
+            "content": "我比较喜欢黑色系，简约风格的"
+          },
+          {
+            "role": "user",
+            "content": "好的谢谢，我再想想"
+          }
         ],
         "expected_extraction": [
-          {"section": "用户偏好", "key": "颜色偏好", "value": "黑色"},
-          {"section": "用户偏好", "key": "风格偏好", "value": "简约"}
+          {
+            "section": "用户偏好",
+            "key": "颜色偏好",
+            "value": "黑色"
+          },
+          {
+            "section": "用户偏好",
+            "key": "风格偏好",
+            "value": "简约"
+          }
         ]
       },
       "session_2": {
         "query": "帮我推荐几件衣服",
-        "expected_keywords": ["黑色", "简约"],
-        "forbidden_keywords": ["你的性别", "需要先了解", "先告诉我"],
+        "expected_keywords": [
+          "黑色",
+          "简约"
+        ],
+        "forbidden_keywords": [
+          "你的性别",
+          "需要先了解",
+          "先告诉我"
+        ],
         "min_matched": 2
       }
     },
@@ -36,22 +60,59 @@
       "description": "身份+技术栈 — 写代码时自然提到工作和技能",
       "session_1": {
         "dialogue": [
-          {"role": "user", "content": "帮我写段 Python 代码，解析一下这个 JSON 数据"},
-          {"role": "user", "content": "我在腾讯做后端开发，base深圳，主要用 Python + Docker"},
-          {"role": "user", "content": "好，先这样"}
+          {
+            "role": "user",
+            "content": "帮我写段 Python 代码，解析一下这个 JSON 数据"
+          },
+          {
+            "role": "user",
+            "content": "我在腾讯做后端开发，base深圳，主要用 Python + Docker"
+          },
+          {
+            "role": "user",
+            "content": "好，先这样"
+          }
         ],
         "expected_extraction": [
-          {"section": "用户画像", "key": "组织/公司", "value": "腾讯"},
-          {"section": "用户画像", "key": "所在地", "value": "深圳"},
-          {"section": "用户画像", "key": "职位", "value": "后端开发"},
-          {"section": "环境配置", "key": "技术", "value": "Python"},
-          {"section": "环境配置", "key": "技术", "value": "Docker"}
+          {
+            "section": "用户画像",
+            "key": "组织/公司",
+            "value": "腾讯"
+          },
+          {
+            "section": "用户画像",
+            "key": "所在地",
+            "value": "深圳"
+          },
+          {
+            "section": "用户画像",
+            "key": "职位",
+            "value": "后端开发"
+          },
+          {
+            "section": "环境配置",
+            "key": "技术",
+            "value": "Python"
+          },
+          {
+            "section": "环境配置",
+            "key": "技术",
+            "value": "Docker"
+          }
         ]
       },
       "session_2": {
         "query": "以我的技术背景，学什么新技能比较有前景",
-        "expected_keywords": ["Python", "后端", "Docker"],
-        "forbidden_keywords": ["方便告诉我", "你目前的技术栈", "系统底层"],
+        "expected_keywords": [
+          "Python",
+          "后端",
+          "Docker"
+        ],
+        "forbidden_keywords": [
+          "方便告诉我",
+          "你目前的技术栈",
+          "系统底层"
+        ],
         "min_matched": 2
       }
     },
@@ -61,8 +122,14 @@
       "description": "弃权 — 没聊过个人信息，不该编造",
       "session_1": {
         "dialogue": [
-          {"role": "user", "content": "帮我格式化这段 JSON：{\"a\":1,\"b\":2}"},
-          {"role": "user", "content": "OK 谢谢"}
+          {
+            "role": "user",
+            "content": "帮我格式化这段 JSON：{\"a\":1,\"b\":2}"
+          },
+          {
+            "role": "user",
+            "content": "OK 谢谢"
+          }
         ],
         "expected_extraction": []
       },
@@ -79,23 +146,652 @@
       "category": "memory_update",
       "description": "记忆更新 — 偏好从黑色变为白色，旧值应标 outdated，检索应返回新值",
       "pre_seed_l2": [
-        {"section": "用户偏好", "key": "颜色偏好", "value": "黑色系"},
-        {"section": "用户偏好", "key": "风格偏好", "value": "简约风格"}
+        {
+          "section": "用户偏好",
+          "key": "颜色偏好",
+          "value": "黑色系"
+        },
+        {
+          "section": "用户偏好",
+          "key": "风格偏好",
+          "value": "简约风格"
+        }
       ],
       "session_1": {
         "dialogue": [
-          {"role": "user", "content": "我最近喜欢上白色系了，感觉更清爽，帮我推荐几件白衣服"},
-          {"role": "user", "content": "好的谢谢"}
+          {
+            "role": "user",
+            "content": "我最近喜欢上白色系了，感觉更清爽，帮我推荐几件白衣服"
+          },
+          {
+            "role": "user",
+            "content": "好的谢谢"
+          }
         ],
         "expected_extraction": [
-          {"section": "用户偏好", "key": "颜色偏好", "value": "白色系"}
+          {
+            "section": "用户偏好",
+            "key": "颜色偏好",
+            "value": "白色系"
+          }
         ]
       },
       "session_2": {
         "query": "帮我推荐几件衣服",
-        "expected_keywords": ["白色系"],
-        "forbidden_keywords": ["黑色系", "你的性别", "需要先了解"],
+        "expected_keywords": [
+          "白色系"
+        ],
+        "forbidden_keywords": [
+          "黑色系",
+          "你的性别",
+          "需要先了解"
+        ],
         "min_matched": 1
+      }
+    },
+    {
+      "id": "CASE-EMB-01",
+      "category": "semantic_gap",
+      "description": "语义鸿沟 — 用户表达情绪('焦虑')，L2存有压力应对偏好('古典音乐')，关键词零命中",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "音乐偏好",
+          "value": "古典音乐"
+        },
+        {
+          "section": "用户偏好",
+          "key": "减压方式",
+          "value": "压力大时喜欢听古典音乐放松"
+        },
+        {
+          "section": "用户偏好",
+          "key": "饮品偏好",
+          "value": "绿茶"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "最近deadline快到了，好焦虑，有什么缓解方法",
+        "expected_keywords": [
+          "古典",
+          "音乐",
+          "放松"
+        ],
+        "forbidden_keywords": [
+          "绿茶"
+        ],
+        "min_matched": 2,
+        "_note": "核心测试: '焦虑'与'压力'语义近邻 → 应命中音乐偏好, 而非饮品偏好"
+      }
+    },
+    {
+      "id": "CASE-EMB-02",
+      "category": "semantic_gap",
+      "description": "语义鸿沟 — 天气冷→热饮, 关键词'天冷/喝点热'不直接匹配'热可可'",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "饮品偏好",
+          "value": "热可可"
+        },
+        {
+          "section": "用户偏好",
+          "key": "季节偏好",
+          "value": "冬天喜欢喝热可可暖身"
+        },
+        {
+          "section": "用户偏好",
+          "key": "食物偏好",
+          "value": "夏天爱吃冰淇淋"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "天冷了，想喝点热的，有什么推荐",
+        "expected_keywords": [
+          "热可可",
+          "暖身"
+        ],
+        "forbidden_keywords": [
+          "冰淇淋"
+        ],
+        "min_matched": 1,
+        "_note": "核心测试: '天冷/喝热的'语义匹配'热可可/暖身', 排除'冰淇淋'"
+      }
+    },
+    {
+      "id": "CASE-EMB-03",
+      "category": "semantic_gap",
+      "description": "语义鸿沟 — '减肥'→清淡饮食, 无直接关键词重叠",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "饮食偏好",
+          "value": "清淡的沙拉和蒸菜"
+        },
+        {
+          "section": "用户偏好",
+          "key": "运动偏好",
+          "value": "喜欢跑步和游泳"
+        },
+        {
+          "section": "用户偏好",
+          "key": "颜色偏好",
+          "value": "蓝色"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "最近胖了想减肥，饮食上有什么建议",
+        "expected_keywords": [
+          "清淡",
+          "沙拉",
+          "蒸菜"
+        ],
+        "forbidden_keywords": [
+          "蓝色"
+        ],
+        "min_matched": 2,
+        "_note": "核心测试: '减肥'语义关联'清淡饮食', 无关事实'蓝色'不出现"
+      }
+    },
+    {
+      "id": "CASE-EMB-04",
+      "category": "noise_filter",
+      "description": "噪音过滤(改) — 20条混合事实, 信号(风格/颜色) vs 纯正交噪音(地址/职位/技术栈/工具), 无关事实不应注入",
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "风格偏好",
+          "value": "简约日系风格"
+        },
+        {
+          "section": "用户偏好",
+          "key": "颜色偏好",
+          "value": "米白色"
+        },
+        {
+          "section": "用户画像",
+          "key": "所在地",
+          "value": "杭州"
+        },
+        {
+          "section": "用户画像",
+          "key": "职位",
+          "value": "后端开发"
+        },
+        {
+          "section": "用户画像",
+          "key": "公司",
+          "value": "腾讯"
+        },
+        {
+          "section": "用户画像",
+          "key": "工作年限",
+          "value": "5年"
+        },
+        {
+          "section": "环境配置",
+          "key": "主要语言",
+          "value": "Python"
+        },
+        {
+          "section": "环境配置",
+          "key": "容器工具",
+          "value": "Docker"
+        },
+        {
+          "section": "环境配置",
+          "key": "编排工具",
+          "value": "Kubernetes"
+        },
+        {
+          "section": "环境配置",
+          "key": "数据库",
+          "value": "PostgreSQL"
+        },
+        {
+          "section": "环境配置",
+          "key": "第二语言",
+          "value": "TypeScript"
+        },
+        {
+          "section": "环境配置",
+          "key": "操作系统",
+          "value": "macOS"
+        },
+        {
+          "section": "环境配置",
+          "key": "编辑器",
+          "value": "VSCode"
+        },
+        {
+          "section": "环境配置",
+          "key": "终端",
+          "value": "Warp"
+        },
+        {
+          "section": "环境配置",
+          "key": "数据库工具",
+          "value": "DataGrip"
+        },
+        {
+          "section": "环境配置",
+          "key": "笔记工具",
+          "value": "Obsidian"
+        },
+        {
+          "section": "环境配置",
+          "key": "CI/CD",
+          "value": "GitHub Actions"
+        },
+        {
+          "section": "环境配置",
+          "key": "Shell",
+          "value": "zsh"
+        },
+        {
+          "section": "环境配置",
+          "key": "包管理器",
+          "value": "uv"
+        },
+        {
+          "section": "环境配置",
+          "key": "Python版本",
+          "value": "3.12"
+        }
+      ],
+      "session_2": {
+        "query": "帮我推荐几件适合我的衣服",
+        "expected_keywords": [
+          "简约",
+          "米白色"
+        ],
+        "forbidden_keywords": [
+          "杭州",
+          "后端开发",
+          "腾讯",
+          "Python",
+          "Docker",
+          "Kubernetes",
+          "PostgreSQL",
+          "TypeScript",
+          "macOS",
+          "VSCode",
+          "Warp",
+          "DataGrip",
+          "Obsidian"
+        ],
+        "min_matched": 1
+      }
+    },
+    {
+      "id": "CASE-EMB-05",
+      "category": "noise_reduction",
+      "description": "噪音过滤 — 工作效率query只召回技术栈相关, 排除个人生活偏好",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "颜色偏好",
+          "value": "卡其色"
+        },
+        {
+          "section": "用户偏好",
+          "key": "饮食偏好",
+          "value": "粤菜"
+        },
+        {
+          "section": "用户画像",
+          "key": "职位",
+          "value": "后端开发"
+        },
+        {
+          "section": "用户画像",
+          "key": "公司",
+          "value": "腾讯"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Python"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Docker"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Kubernetes"
+        },
+        {
+          "section": "环境配置",
+          "key": "编辑器",
+          "value": "NeoVim"
+        },
+        {
+          "section": "用户偏好",
+          "key": "运动偏好",
+          "value": "羽毛球"
+        },
+        {
+          "section": "用户偏好",
+          "key": "饮品偏好",
+          "value": "美式咖啡"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "我的工作效率越来越低，有什么工具或方法能提升",
+        "expected_keywords": [
+          "Python",
+          "Docker",
+          "编辑器"
+        ],
+        "forbidden_keywords": [
+          "卡其色",
+          "粤菜",
+          "羽毛球",
+          "美式"
+        ],
+        "min_matched": 2,
+        "_note": "核心测试: 工作效率query召回技术栈, 排除个人生活偏好"
+      }
+    },
+    {
+      "id": "CASE-EMB-06",
+      "category": "abstract_query",
+      "description": "抽象查询 — '周末无聊'→爱好推荐, 无直接关键词匹配",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "爱好",
+          "value": "户外徒步和摄影"
+        },
+        {
+          "section": "用户偏好",
+          "key": "音乐偏好",
+          "value": "爵士乐"
+        },
+        {
+          "section": "用户偏好",
+          "key": "饮食偏好",
+          "value": "甜食"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "周末不知道干什么好无聊，有没有什么建议",
+        "expected_keywords": [
+          "徒步",
+          "摄影",
+          "户外"
+        ],
+        "forbidden_keywords": [
+          "甜食"
+        ],
+        "min_matched": 2,
+        "_note": "核心测试: '周末无聊'语义关联爱好/消遣, '甜食'不应出现"
+      }
+    },
+    {
+      "id": "CASE-EMB-07",
+      "category": "synonym_mapping",
+      "description": "同义映射 — '有什么好喝的'匹配'饮品偏好:手冲咖啡/美式'",
+      "pre_seed_l2": [
+        {
+          "section": "用户偏好",
+          "key": "饮品偏好",
+          "value": "手冲咖啡"
+        },
+        {
+          "section": "用户偏好",
+          "key": "咖啡偏好",
+          "value": "喜欢喝美式"
+        },
+        {
+          "section": "用户偏好",
+          "key": "颜色偏好",
+          "value": "灰色"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "有什么好喝的推荐一下",
+        "expected_keywords": [
+          "咖啡",
+          "美式"
+        ],
+        "forbidden_keywords": [
+          "灰色"
+        ],
+        "min_matched": 1,
+        "_note": "核心测试: '好喝的'与'饮品/咖啡'同义, 颜色不应出现"
+      }
+    },
+    {
+      "id": "CASE-EMB-08",
+      "category": "context_inference",
+      "description": "上下文推断 — '去哪玩'结合所在地深圳+海边偏好",
+      "pre_seed_l2": [
+        {
+          "section": "用户画像",
+          "key": "所在地",
+          "value": "深圳"
+        },
+        {
+          "section": "用户偏好",
+          "key": "旅行偏好",
+          "value": "喜欢海边度假"
+        },
+        {
+          "section": "用户偏好",
+          "key": "饮食偏好",
+          "value": "日料"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "这周末想出去走走，有什么地方推荐",
+        "expected_keywords": [
+          "深圳",
+          "海边"
+        ],
+        "forbidden_keywords": [
+          "日料"
+        ],
+        "min_matched": 1,
+        "_note": "核心测试: '出去走走'→所在地+旅行偏好, 饮食不相关"
+      }
+    },
+    {
+      "id": "CASE-EMB-09",
+      "category": "career_inference",
+      "description": "职业推断 — '转行AI'关联Python+后端背景",
+      "pre_seed_l2": [
+        {
+          "section": "用户画像",
+          "key": "职位",
+          "value": "后端开发"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Python"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Docker"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "PostgreSQL"
+        },
+        {
+          "section": "环境配置",
+          "key": "操作系统",
+          "value": "Ubuntu"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "想转行做AI大模型开发，以我的背景该从哪里开始学",
+        "expected_keywords": [
+          "Python",
+          "后端"
+        ],
+        "forbidden_keywords": [
+          "Ubuntu",
+          "PostgreSQL"
+        ],
+        "min_matched": 2,
+        "_note": "核心测试: 'AI大模型'与'Python'强语义关联, Ubuntu不相关但同为技术类"
+      }
+    },
+    {
+      "id": "CASE-EMB-10",
+      "category": "precision_matching",
+      "description": "精准匹配 — '编辑器推荐'→VSCode, 其他技术栈事实不干扰",
+      "pre_seed_l2": [
+        {
+          "section": "环境配置",
+          "key": "编辑器",
+          "value": "VSCode"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "React"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "TypeScript"
+        },
+        {
+          "section": "环境配置",
+          "key": "技术",
+          "value": "Node.js"
+        },
+        {
+          "section": "环境配置",
+          "key": "终端",
+          "value": "Warp"
+        },
+        {
+          "section": "环境配置",
+          "key": "笔记",
+          "value": "Obsidian"
+        },
+        {
+          "section": "环境配置",
+          "key": "数据库工具",
+          "value": "DataGrip"
+        },
+        {
+          "section": "用户画像",
+          "key": "职位",
+          "value": "全栈开发"
+        }
+      ],
+      "session_1": {
+        "dialogue": [
+          {
+            "role": "user",
+            "content": "好"
+          }
+        ],
+        "expected_extraction": []
+      },
+      "session_2": {
+        "query": "推荐一个好用的代码编辑器给我",
+        "expected_keywords": [
+          "VSCode"
+        ],
+        "forbidden_keywords": [
+          "DataGrip",
+          "Warp",
+          "Obsidian"
+        ],
+        "min_matched": 1,
+        "_note": "核心测试: 8个环境工具中, '代码编辑器'精准命中VSCode, 数据库/终端/笔记工具不出现"
       }
     }
   ],

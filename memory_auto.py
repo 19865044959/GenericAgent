@@ -1,19 +1,60 @@
 """
 memory_auto.py - GA 自动记忆模块
-- search_memory:     关键词检索 L2 记忆（每次用户输入时触发）
-- extract_facts:     LLM 萃取对话事实（会话结束时触发）
-- auto_update_l2:    将事实写入 global_mem.txt
+- search_memory:     语义检索 L2 记忆（embedding 优先，关键词 fallback）
+- extract_facts:     LLM 萃取对话事实（增量模式：只传相关记忆去重）
+- auto_update_l2:    将事实写入 global_mem.txt + 同步 vectors.json
 - detect_conflicts:  检测新旧事实冲突
 """
 
 import os, re, json
 
 
-def search_memory(query, memory_dir):
-    """
-    根据用户查询，用关键词匹配检索 L2 (global_mem.txt) 中的相关记忆。
-    每次用户输入时调用，返回格式化的记忆文本可直接注入上下文。
-    """
+# ── Embedding 后端（延迟加载）──
+_embedder = None
+_vectors_cache = None  # (vec_path, l2_mtime, entries)
+
+
+def _get_embedder():
+    """延迟加载 embedder 单例"""
+    global _embedder
+    if _embedder is None:
+        try:
+            from memory.embedder import get_embedder
+            _embedder = get_embedder()
+        except ImportError:
+            _embedder = None
+    return _embedder
+
+
+def _get_vectors(memory_dir, force_reload=False):
+    """加载向量索引（带缓存）。返回 entries 列表或 []。"""
+    global _vectors_cache
+    l2_path = os.path.join(memory_dir, 'global_mem.txt')
+    vec_path = os.path.join(memory_dir, 'vectors.json')
+    embedder = _get_embedder()
+
+    if embedder is None:
+        return []
+
+    l2_mtime = os.path.getmtime(l2_path) if os.path.exists(l2_path) else 0
+
+    # 检查缓存
+    if not force_reload and _vectors_cache is not None:
+        cached_path, cached_mtime, entries = _vectors_cache
+        if cached_path == vec_path and cached_mtime == l2_mtime:
+            return entries
+
+    try:
+        from memory.vectors import load_vectors
+        entries = load_vectors(vec_path, embedder, l2_path)
+        _vectors_cache = (vec_path, l2_mtime, entries)
+        return entries
+    except ImportError:
+        return []
+
+
+def _keyword_search(query, memory_dir):
+    """关键词匹配检索（旧逻辑，作为 fallback）"""
     l2_path = os.path.join(memory_dir, 'global_mem.txt')
     if not os.path.exists(l2_path):
         return ''
@@ -33,7 +74,8 @@ def search_memory(query, memory_dir):
             current_section = stripped.strip('# []').strip()
         elif stripped.startswith('- ') and len(stripped) > 2:
             text = stripped[2:].strip()
-            facts.append({'section': current_section, 'text': text})
+            if ':' in text or '：' in text:
+                facts.append({'section': current_section, 'text': text})
 
     if not facts:
         return ''
@@ -48,7 +90,7 @@ def search_memory(query, memory_dir):
     for w in re.findall(r'[a-zA-Z]{3,}', query.lower()):
         keywords_ngram.add(w)
 
-    # 中文同义词扩展：将查询中的类别词扩展为可能的 L2 key/value 词
+    # 中文同义词扩展
     SYNONYMS = {
         '工作': ['公司', '组织', 'employer', '单位', '职业', '职位', '领域'],
         '公司': ['工作', '组织', 'employer', '单位', '职位'],
@@ -87,8 +129,6 @@ def search_memory(query, memory_dir):
     for kw in list(keywords_char):
         if kw in SYNONYMS:
             keywords_ngram.update(SYNONYMS[kw])
-
-    # 也检查原始 query 中是否包含任意同义词 key（处理 3+ 字的中文短语）
     for syn_key, syn_words in SYNONYMS.items():
         if syn_key in query:
             keywords_ngram.update(syn_words)
@@ -96,14 +136,12 @@ def search_memory(query, memory_dir):
     if not keywords_ngram and not keywords_char:
         return ''
 
-    # 对每个 fact 打分：检查 key/value/section 中是否包含关键词
+    # 对每个 fact 打分
     scored = []
     for fact in facts:
         search_text = (fact['section'] + ' ' + fact['text']).lower()
-        # 先试 2-gram 匹配
         score = sum(2 for kw in keywords_ngram if kw.lower() in search_text)
         if score == 0:
-            # 2-gram 没命中，试单字匹配（至少2个单字命中才算）
             char_hits = sum(1 for c in keywords_char if c in search_text)
             score = 0.5 if char_hits >= 2 else 0
         if score > 0:
@@ -121,11 +159,40 @@ def search_memory(query, memory_dir):
     return '\n'.join(lines)
 
 
+def search_memory(query, memory_dir):
+    """
+    语义检索 L2 记忆：embedding 优先，关键词 fallback。
+    每次用户输入时调用，返回格式化的记忆文本可直接注入上下文。
+    """
+    # ── 路径 1: Embedding 语义检索 ──
+    entries = _get_vectors(memory_dir)
+    embedder = _get_embedder()
+    if entries and embedder:
+        try:
+            from memory.vectors import search_vectors
+            results = search_vectors(query, entries, embedder, top_k=5, threshold=0.4)
+        except ImportError:
+            results = []
+
+        if results:
+            lines = ['[Auto Retrieved Memory]']
+            for r in results:
+                prefix = f"[{r['section']}] " if r['section'] else ''
+                lines.append(f"- {prefix}{r['key']}: {r['value']}")
+            return '\n'.join(lines)
+
+    # ── 路径 2: 关键词 fallback ──
+    return _keyword_search(query, memory_dir)
+
+
 def extract_facts(history_info, user_history, llmclient, memory_dir=None, timeout=20):
     """
     使用 LLM 从对话历史中提取持久性事实。
     在会话结束时调用。返回结构化事实列表。
-    会将现有 L2 内容传给 LLM，让它判断新增 vs 更新 vs 覆盖。
+
+    增量模式（默认）：用 embedding 检索与对话最相关的已有事实（top-20），
+    只将这些传给 LLM 去重，避免 L2 膨胀时 token 爆炸。
+    若 embedding 不可用，降级为传全部 L2。
     timeout: LLM 调用超时秒数（默认 20s）
     """
     conversation_lines = []
@@ -154,27 +221,62 @@ def extract_facts(history_info, user_history, llmclient, memory_dir=None, timeou
     if len(conversation.strip()) < 30:
         return []
 
-    # 读取现有 L2，让 LLM 知道当前有哪些事实，避免重复 key
+    l2_path = os.path.join(memory_dir, 'global_mem.txt') if memory_dir else None
+
+    # ── 增量模式（embedding 可用时）──
     existing_l2 = ''
-    if memory_dir:
-        l2_path = os.path.join(memory_dir, 'global_mem.txt')
-        if os.path.exists(l2_path):
-            with open(l2_path, 'r', encoding='utf-8') as f:
-                raw = f.read().strip()
-                if raw and raw != '# [Global Memory - L2]':
-                    existing_l2 = raw
+    if l2_path and os.path.exists(l2_path):
+        with open(l2_path, 'r', encoding='utf-8') as f:
+            raw = f.read().strip()
+
+        if raw and raw != '# [Global Memory - L2]':
+            embedder = _get_embedder()
+            if embedder is not None:
+                # 用 embedding 检索 top-20 与对话最相关的已有事实
+                relevant = _get_relevant_facts(conversation, memory_dir, top_k=20)
+                if relevant:
+                    existing_l2 = '\n'.join(relevant)
+                    print(f"[Memory Auto] Incremental extraction: "
+                          f"selected {len(relevant)} relevant facts from L2 "
+                          f"(full L2 has ~{len(raw.split(chr(10)))} lines)")
+                else:
+                    existing_l2 = raw  # 检索失败，传全部
+            else:
+                existing_l2 = raw  # embedding 不可用，传全部
 
     existing_section = ''
     if existing_l2:
-        existing_section = f"""=== 当前已存储的事实（参考，避免重复 key） ===
+        existing_section = f"""=== 当前已存储的**相关**事实（必须复用已有 key 名！） ===
 {existing_l2}
 === 结束 ===
 
-规则：
+严格规则：
+- ★ 最关键 ★：如果对话中的新信息与已存储事实是**同一件事**，即使 key 名写法不同
+  （如 "喜欢的颜色" 和 "颜色偏好"、"技术栈" 和 "编程语言"、"住址" 和 "所在地"），
+  **必须复用已有的 key 名**！不要自创新 key！
 - 如果对话中新信息与已存储事实 key 相同但 value 不同 → 输出新 value（视为更新）
 - 如果对话中新信息与已存储事实完全一致 → 不要重复输出
 - 如果对话中用户明确否定了旧偏好（如"不再喜欢黑色，现在喜欢白色"）→ 只输出新 value
 """
+
+    extraction_prompt = f"""从以下对话中提取用户的持久性事实。只提取跨会话仍然成立的信息：
+
+- 用户身份：姓名、性别、所在地、组织/公司、职位
+- 用户偏好：颜色、食物、饮品、工具、语言、风格
+- 环境配置：项目路径、工具路径、常用参数
+
+不要提取：临时请求、一次性任务细节、当前会话特定内容。
+
+输出纯 JSON 数组（不要 markdown 标记，key 必须用中文）：
+[{{"section": "用户画像", "key": "颜色偏好", "value": "红色"}}]
+如果没有值得持久化的事实，输出空数组：[]。
+
+{existing_section}
+=== 对话历史 ===
+{conversation[-3500:]}
+=== 结束 ===
+
+JSON 输出："""
 
     extraction_prompt = f"""从以下对话中提取用户的持久性事实。只提取跨会话仍然成立的信息：
 
@@ -229,6 +331,55 @@ JSON 输出："""
         pass
 
     return []
+
+
+def _get_relevant_facts(conversation, memory_dir, top_k=20):
+    """用 embedding 从 L2 中检索与对话最相关的已有事实（纯文本行）。
+    用于增量萃取：只传相关事实给 LLM，避免 token 爆炸。
+    """
+    entries = _get_vectors(memory_dir)
+    embedder = _get_embedder()
+    if not entries or embedder is None:
+        return []
+
+    try:
+        from memory.vectors import search_vectors
+        results = search_vectors(
+            conversation, entries, embedder,
+            top_k=top_k, threshold=0.0  # 阈值放低，取够 top_k
+        )
+    except ImportError:
+        return []
+
+    # 还原为文本行格式
+    lines = []
+    for r in results:
+        # 重建 section 头
+        section = r.get('section', '')
+        if section and section not in [l.strip('# []').strip() for l in lines]:
+            lines.append(f'## [{section}]')
+        lines.append(f'- {r["key"]}: {r["value"]}')
+    return lines
+
+
+def _sync_vectors(memory_dir):
+    """同步 vectors.json 与 global_mem.txt"""
+    embedder = _get_embedder()
+    if embedder is None:
+        return
+
+    l2_path = os.path.join(memory_dir, 'global_mem.txt')
+    vec_path = os.path.join(memory_dir, 'vectors.json')
+
+    try:
+        from memory.vectors import build_vectors, save_vectors
+        entries = build_vectors(l2_path, embedder)
+        save_vectors(entries, vec_path, l2_path, embedder)
+        # 清除缓存，下次检索时重新加载
+        global _vectors_cache
+        _vectors_cache = None
+    except ImportError:
+        pass
 
 
 def detect_conflicts(new_facts, existing_l2):
@@ -289,6 +440,18 @@ def auto_update_l2(facts, memory_dir):
         if dup_pattern.search(existing):
             continue  # 完全重复，跳过
 
+        # Value 级去重: 检查是否已有其他 key 但 value 完全相同的行
+        # 防止 LLM 自创了不同的 key 名来表达同一事实
+        # （如已有的 "喜欢的颜色：卡其色" vs LLM 输出的 "颜色偏好: 卡其色"）
+        escaped_value = re.escape(value)
+        value_dup_pattern = re.compile(
+            rf'^-\s*[^:：]+[:：]\s*{escaped_value}\s*$',
+            re.MULTILINE | re.IGNORECASE
+        )
+        if value_dup_pattern.search(existing):
+            print(f"[Memory Auto] Skipped (value duplicate with different key): '{key}: {value}'")
+            continue
+
         # 检查是否已有相同 key 但不同 value（冲突）
         key_pattern = re.compile(rf'^-\s*{re.escape(key)}\s*[:：]', re.MULTILINE | re.IGNORECASE)
         is_conflict = any(c['key'] == key for c in conflicts)
@@ -324,6 +487,9 @@ def auto_update_l2(facts, memory_dir):
         with open(l2_path, 'w', encoding='utf-8') as f:
             f.write(existing)
         print(f"[Memory Auto] L2 updated: {added} new, {updated} updated")
+
+        # ── 同步向量索引 ──
+        _sync_vectors(memory_dir)
     else:
         print("[Memory Auto] No new persistable facts found")
 

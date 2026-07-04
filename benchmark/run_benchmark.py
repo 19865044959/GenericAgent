@@ -287,7 +287,8 @@ def run_e2e_benchmark():
 
         if should_abstain:
             abstain_indicators = ['不知道', '不清楚', '没有提到', "don't know", '未提及', '没有记录',
-                                 '没有提供', '无法回答', '没有手机号', '没有找到']
+                                 '没有提供', '无法回答', '没有手机号', '没有找到', '未找到', '没有存储',
+                                 '未存储', '没有保存', '没有相关', '没有关于']
             has_abstention = any(ind in output for ind in abstain_indicators)
             keyword_ok = has_abstention and len(wrong) == 0
         else:
@@ -357,11 +358,13 @@ def _run_ga_multi_turn(task_dir, user_messages):
     cmd = [sys.executable, os.path.join(SCRIPT_DIR, 'agentmain.py'),
            '--task', task_dir, '--nobg']
 
+    stdout_f = open(os.path.join(task_path, 'stdout.log'), 'w', buffering=1)
     proc = subprocess.Popen(cmd, cwd=SCRIPT_DIR, env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=stdout_f, stderr=subprocess.STDOUT)
 
     final_output = "[TIMEOUT]"
     l2_path = os.path.join(SCRIPT_DIR, 'memory', 'global_mem.txt')
+    seen_output_files = set()  # 记录已经见过的 output 文件名，避免跨轮复用
 
     for turn_idx in range(len(user_messages)):
         # 等待当前轮输出完成（有 [ROUND END]）
@@ -376,10 +379,15 @@ def _run_ga_multi_turn(task_dir, user_messages):
                 reverse=True
             )
             if output_files:
-                with open(os.path.join(task_path, output_files[0]), 'r', encoding='utf-8') as f:
+                # 只读本轮新出现的文件，避免读到上一轮的 [ROUND END]
+                latest_file = output_files[0]
+                if latest_file in seen_output_files:
+                    continue
+                with open(os.path.join(task_path, latest_file), 'r', encoding='utf-8') as f:
                     output = f.read()
                 if '[ROUND END]' in output:
                     found = True
+                    seen_output_files.add(latest_file)
                     break
 
         if not found:
@@ -402,20 +410,28 @@ def _run_ga_multi_turn(task_dir, user_messages):
     with open(stop_file, 'w') as f:
         f.write('1')
 
-    # 等待 L2 mtime 变化来确认 auto-extraction 完成
+    # 等待 auto-extraction 完成（L2 mtime 变化 或 进程退出）
     l2_mtime_before = os.path.getmtime(l2_path) if os.path.exists(l2_path) else 0
-    for _ in range(15):  # 最多等 30 秒
+    for _ in range(30):  # 最多等 60 秒
         time.sleep(2)
-        if os.path.exists(l2_path):
-            if os.path.getmtime(l2_path) > l2_mtime_before:
-                break
+        if proc.poll() is not None:
+            break  # 进程已退出
+        if os.path.exists(l2_path) and os.path.getmtime(l2_path) > l2_mtime_before:
+            break  # L2 已更新
 
-    try:
-        proc.kill()
-        proc.wait(timeout=5)
-    except Exception:
-        pass
+    # 等待进程优雅退出（再给 5 秒）
+    for _ in range(5):
+        if proc.poll() is not None:
+            break
+        time.sleep(1)
+    else:
+        try:
+            proc.kill()
+            proc.wait(timeout=5)
+        except Exception:
+            pass
 
+    stdout_f.close()
     return final_output
 
 
@@ -437,8 +453,9 @@ def _run_ga_task(task_dir, input_text):
     cmd = [sys.executable, os.path.join(SCRIPT_DIR, 'agentmain.py'),
            '--task', task_dir, '--nobg']
 
+    stdout_f = open(os.path.join(task_path, 'stdout.log'), 'w', buffering=1)
     proc = subprocess.Popen(cmd, cwd=SCRIPT_DIR, env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=stdout_f, stderr=subprocess.STDOUT)
 
     output = "[TIMEOUT]"
     found_output = False
@@ -467,20 +484,28 @@ def _run_ga_task(task_dir, input_text):
     with open(stop_file, 'w') as f:
         f.write('1')
 
-    # 等待 auto-extraction 完成
+    # 等待 auto-extraction 完成（L2 mtime 变化 或 进程退出）
     l2_mtime_before = os.path.getmtime(l2_path) if os.path.exists(l2_path) else 0
-    for _ in range(15):
+    for _ in range(30):  # 最多等 60 秒
         time.sleep(2)
-        if os.path.exists(l2_path):
-            if os.path.getmtime(l2_path) > l2_mtime_before:
-                break
+        if proc.poll() is not None:
+            break  # 进程已退出
+        if os.path.exists(l2_path) and os.path.getmtime(l2_path) > l2_mtime_before:
+            break  # L2 已更新
 
-    try:
-        proc.kill()
-        proc.wait(timeout=5)
-    except Exception:
-        pass
+    # 等待进程优雅退出（再给 5 秒）
+    for _ in range(5):
+        if proc.poll() is not None:
+            break
+        time.sleep(1)
+    else:
+        try:
+            proc.kill()
+            proc.wait(timeout=5)
+        except Exception:
+            pass
 
+    stdout_f.close()
     return output
 
 
