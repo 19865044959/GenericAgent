@@ -12,7 +12,7 @@
 from vision_api import ask_vision
 result = ask_vision(image, prompt="描述图片内容", timeout=60, max_pixels=1_440_000)
 # image: 文件路径(str/Path) 或 PIL Image
-# backend: 'claude'(默认) | 'openai' | 'modelscope'
+# backend: 'claude'(默认) | 'openai' | 'modelscope' | 'qwen'(qwen3-vl-plus/百炼)
 # 返回 str：成功为模型回复，失败为 'Error: ...'
 ```
 
@@ -21,3 +21,4 @@ result = ask_vision(image, prompt="描述图片内容", timeout=60, max_pixels=1
 1. 复制 `memory/vision_api.template.py` → `memory/vision_api.py`
 2. 只改头部"用户配置区"：去 `mykey.py` 里扫描变量名（⚠️ 只看名字，禁止输出 apikey 值），尝试找能用配置名填入 `CLAUDE_CONFIG_KEY` / `OPENAI_CONFIG_KEY`，`DEFAULT_BACKEND` 选后端，并测试
 3. 保底：没有可用 config 时去 `https://modelscope.cn/my/myaccesstoken` 申请 token 填入 `MODELSCOPE_API_KEY`
+4. Qwen3-VL-Plus：已预配在 `vision_api.py` 中，`backend='qwen'` 直接可用。API base = `https://dashscope.aliyuncs.com/compatible-mode`（⚠️ 不加 `/v1` 后缀，否则路径重复）

@@ -9,7 +9,7 @@ L4: L4_raw_sessions/ historical sessions
 
 Browser special ops: tmwebdriver_sop(file upload/image search/PDF blob/physical coords/HttpOnly Cookie/autofill bypass/cross-origin iframe/CDP/cross-tab)
 Keyboard/Mouse: ljqCtrl_sop(no pyautogui/activate first)
-UI/Screenshot/Vision: computer_use.md | vision_sop | window screenshot use ljqCtrl
+UI/Screenshot/Vision: computer_use.md | vision_sop (vision_api.py) | window screenshot use ljqCtrl
 Scheduling: scheduled_task_sop | Autonomous: autonomous_operation_sop | watchdog/reflect: agentmain --reflect
 Mobile: adb_ui.py
 

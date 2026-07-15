@@ -29,7 +29,13 @@ import numpy as np
 def _parse_l2_facts(l2_path: str) -> list[dict]:
     """解析 global_mem.txt，提取所有事实条目。
 
-    返回: [{"section": str, "key": str, "value": str}, ...]
+    Markdown 格式:
+      # [Global Memory - L2]          — 文件标题（跳过）
+      ## [Section]                     — 一级分类
+      ### Subsection                   — 二级分类（可选）
+      - key: value                     — 事实条目
+
+    返回: [{"section": str, "subsection": str|None, "key": str, "value": str}, ...]
     """
     if not os.path.exists(l2_path):
         return []
@@ -39,12 +45,23 @@ def _parse_l2_facts(l2_path: str) -> list[dict]:
 
     facts = []
     current_section = ''
+    current_subsection = ''
     for line in content.split('\n'):
         stripped = line.strip()
 
-        # Section header: ## [SectionName]
+        # H1: 文件标题，跳过
+        if stripped.startswith('# ') and not stripped.startswith('## '):
+            continue
+
+        # H2: ## [SectionName]
         if stripped.startswith('## ['):
             current_section = stripped.strip('# []').strip()
+            current_subsection = ''
+            continue
+
+        # H3: ### Subsection (optional)
+        if stripped.startswith('### '):
+            current_subsection = stripped[4:].strip()
             continue
 
         # Fact line: - key: value
@@ -58,6 +75,7 @@ def _parse_l2_facts(l2_path: str) -> list[dict]:
                 if key and value:
                     facts.append({
                         'section': current_section,
+                        'subsection': current_subsection or None,
                         'key': key,
                         'value': value
                     })
@@ -66,12 +84,29 @@ def _parse_l2_facts(l2_path: str) -> list[dict]:
 
 
 def fact_to_embed_text(fact: dict) -> str:
-    """将一条事实转为 embedding 用文本"""
+    """将一条事实转为 embedding 用文本。
+
+    格式: "{key}: {value} [{section} > {subsection}]"
+    key:value 放在前面主导语义，层级路径放在末尾当轻量标签。
+    这样 "耳机偏好: 入耳式降噪 [购物偏好 > 数码电子产品]"
+    和 "颜色偏好: 卡其色 [购物偏好 > 服装鞋帽]"
+    的向量自然分开，不需硬编码关键词映射。
+    """
     section = fact.get('section', '')
+    subsection = fact.get('subsection', '')
     key = fact.get('key', '')
     value = fact.get('value', '')
-    if section:
-        return f"[{section}] {key}: {value}"
+
+    # 构建层级路径
+    if subsection:
+        hierarchy = f"{section} > {subsection}"
+    elif section:
+        hierarchy = section
+    else:
+        hierarchy = ''
+
+    if hierarchy:
+        return f"{key}: {value} [{hierarchy}]"
     return f"{key}: {value}"
 
 
@@ -97,6 +132,7 @@ def build_vectors(l2_path: str, embedder) -> list[dict]:
             vec = embedder.encode(text)
             entries.append({
                 'section': fact['section'],
+                'subsection': fact.get('subsection'),
                 'key': fact['key'],
                 'value': fact['value'],
                 'embed_text': text,
@@ -200,6 +236,7 @@ def search_vectors(query: str, entries: list[dict], embedder,
         if score >= threshold:
             scored.append({
                 'section': entry['section'],
+                'subsection': entry.get('subsection'),
                 'key': entry['key'],
                 'value': entry['value'],
                 'score': float(score)
