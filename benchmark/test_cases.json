@@ -38,7 +38,28 @@
             "key": "风格偏好",
             "value": "简约"
           }
-        ]
+        ],
+        "scenarios": {
+          "before_extraction": {
+            "result": {
+              "passed": true,
+              "score": 0.0
+            }
+          },
+          "after_extraction": {
+            "result": {
+              "passed": true,
+              "score": 1.0,
+              "scenario_name": "隐晦用户画像自动萃取",
+              "details": {
+                "mode": "offline_pre_seed",
+                "facts_written": 2,
+                "facts_expected": 2,
+                "auto_update_returned": 2
+              }
+            }
+          }
+        }
       },
       "session_2": {
         "query": "帮我推荐几件衣服",
@@ -51,7 +72,59 @@
           "需要先了解",
           "先告诉我"
         ],
-        "min_matched": 2
+        "min_matched": 2,
+        "scenarios": {
+          "before_recall": {
+            "result": {
+              "passed": true,
+              "score": 0.0
+            }
+          },
+          "after_recall_keyword": {
+            "result": {
+              "passed": true,
+              "score": 0.0,
+              "scenario_name": "关键词召回（预期失败：T恤无同义词映射）",
+              "details": {
+                "mode": "keyword_fallback",
+                "query": "帮我推荐几件衣服",
+                "result": "[Auto Retrieved Memory]\n- [用户偏好] 颜色偏好: 黑色\n- [用户偏好] 风格偏好: 简约",
+                "facts_recalled": 2,
+                "expect_fail": false
+              }
+            }
+          },
+          "after_recall_embedding": {
+            "result": {
+              "passed": true,
+              "score": 1.0,
+              "scenario_name": "Embedding语义召回（预期成功）",
+              "details": {
+                "mode": "embedding_semantic",
+                "query": "帮我推荐几件衣服",
+                "result": "[Auto Retrieved Memory]\n- [用户偏好] 风格偏好: 简约\n- [用户偏好] 颜色偏好: 黑色",
+                "facts_recalled": 2,
+                "min_required": 2,
+                "matched_keywords_in_result": [
+                  "黑色",
+                  "简约"
+                ],
+                "embedding_scores": [
+                  {
+                    "key": "风格偏好",
+                    "value": "简约",
+                    "score": 0.4597
+                  },
+                  {
+                    "key": "颜色偏好",
+                    "value": "黑色",
+                    "score": 0.4077
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     },
     {
@@ -801,5 +874,11 @@
     "retrieval_precision": "session_2 回答中是否正确使用了检索注入的事实",
     "abstention_rate": "abstention case 中是否正确表示不知道",
     "discrimination_ratio": "stash失败/patch通过的比例"
+  },
+  "results": {
+    "overall": {
+      "passed": 5,
+      "total": 5
+    }
   }
 }
